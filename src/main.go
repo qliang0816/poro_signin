@@ -2,11 +2,12 @@ package main
 
 import (
 	"net/http"
-	"fmt"
 	"io/ioutil"
 	"net/url"
 	"github.com/unknwon/goconfig"
 	"log"
+	"encoding/json"
+	"net/http/cookiejar"
 )
 
 func main() {
@@ -18,8 +19,12 @@ func main() {
 	login_url, _ := conf.GetValue("user1", "login_url")
 	email, _ := conf.GetValue("user1", "email")
 	passwd, _ := conf.GetValue("user1", "passwd")
+	// 保持cookie的可用性
+	var client http.Client
+	jar, _ := cookiejar.New(nil)
+	client.Jar = jar
 	//请求登录
-	resp, err := http.PostForm(login_url, url.Values{"email": {email}, "passwd": {passwd}})
+	resp, err := client.PostForm(login_url, url.Values{"email": {email}, "passwd": {passwd}})
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
@@ -28,5 +33,25 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
-	fmt.Println(string(body))
+	var login_msg map[string]interface{}
+	// 解析返回参数是否登录成功
+	if err := json.Unmarshal([]byte(string(body)), &login_msg); err == nil {
+		if resp.StatusCode == 200 {
+			log.Printf(email+" :%s", login_msg["msg"])
+			checkin_url, _ := conf.GetValue("user1", "checkin_url")
+			resp, _ = client.PostForm(checkin_url, url.Values{})
+			if err != nil {
+				log.Fatalf("签到失败:%s", err)
+			}
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Fatalf("%s", err)
+			}
+			log.Println(string(body))
+		} else {
+			log.Println("登录失败")
+		}
+	} else {
+		log.Fatalf("%s", err)
+	}
 }
