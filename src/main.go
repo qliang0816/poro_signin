@@ -47,7 +47,17 @@ func main() {
 			if err != nil {
 				log.Fatalf("%s", err)
 			}
-			log.Println(string(body))
+			//log.Println(string(body))
+			// 解析签到信息
+			var sign_msg map[string]interface{}
+			if err := json.Unmarshal([]byte(string(body)), &sign_msg); err == nil {
+				//log.Println(resp.StatusCode)
+				if resp.StatusCode == 200 {
+					log.Println(sign_msg["msg"])
+				} else {
+					log.Println("登录失败")
+				}
+			}
 		} else {
 			log.Println("登录失败")
 		}
